@@ -31,31 +31,47 @@ const registerUser = async (req, res) => {
 
 // Login user
 const loginUser = async (req, res) => {
-    const { username, password } = req.body;
+  const { username, password } = req.body;
 
-    try {
-        // Find user by username
-        const user = await User.findOne({ username });
-        
-
-        if (!user) {
-            return res.status(404).json({ error: 'User not found.' });
-        }
-
-        // Validate password
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-            return res.status(401).json({ error: 'Invalid credentials.' });
-        }
-
-        // Generate JWT token
-        const token = jwt.sign({ id: user._id }, SECRET_KEY, { expiresIn: '24h' });
-
-        res.status(200).json({ message: 'Login successful', user, token });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Internal server error' });
+  try {
+    // Find user by username
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
     }
+
+    // Validate password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: "Invalid credentials." });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign({ id: user._id }, SECRET_KEY, { expiresIn: "24h" });
+
+    // Store token in HTTP-only cookie
+    res.cookie("token", token, {
+      httpOnly: true, // prevent client JS access
+      secure: process.env.NODE_ENV === "production", // send only over HTTPS in production
+      sameSite: "strict", // CSRF protection
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    });
+
+    // Send success response (without exposing token)
+    res.status(200).json({
+      message: "Login successful",
+      user: {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+      },
+      token
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 };
+
 
 module.exports = { registerUser, loginUser };

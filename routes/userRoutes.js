@@ -8,10 +8,13 @@ const {
   getAllUsers,
   getReceivedRequests,
   declineRequest,
+  removeFriend,
 } = require("../controllers/userController");
 const authenticateToken = require("../middleware/authMiddleware"); // Import the auth middleware
 
 // Route for sending a friend request (protected by auth middleware)
+
+
 router.post("/send-request", authenticateToken, sendRequest);
 
  
@@ -25,6 +28,9 @@ router.get("/me", authenticateToken, getUserDetails);
 
 // Route for getting the list of friends of the authenticated user (protected by auth middleware)
 router.get("/friends", authenticateToken, getFriendsList);
+
+router.post("/remove-friend", authenticateToken, removeFriend);
+
 
 // Route for getting a list of all users (protected by auth middleware)
 router.get("/all-users", authenticateToken, getAllUsers);

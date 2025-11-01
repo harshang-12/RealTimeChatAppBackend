@@ -1,6 +1,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const cookieParser = require("cookie-parser");
+
 require('dotenv').config();
 const initializeWebSocket = require('./websocket'); // Import WebSocket logic
 
@@ -13,8 +15,15 @@ const userRoutes = require('./routes/userRoutes');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.use(cookieParser());
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://localhost:5173" , "http://192.168.1.2:5173"], // your frontend URL
+    credentials: true, // allow cookies
+  })
+);
+
 app.use(express.json());
 
 // Database connection

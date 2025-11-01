@@ -292,3 +292,45 @@ exports.declineRequest = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+
+exports.removeFriend = async (req, res) => {
+  try {
+    const { friendId } = req.body; // friendId to remove
+    const userId = req.user.userId;
+
+    if (!friendId) {
+      return res.status(400).json({ message: "Friend ID is required" });
+    }
+
+    // Find both users
+    const user = await User.findById(userId);
+    const friend = await User.findById(friendId);
+
+    if (!user || !friend) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if they are friends
+    if (!user.friends.includes(friendId)) {
+      return res.status(400).json({ message: "You are not friends" });
+    }
+
+    // Remove each other from friends lists
+    user.friends = user.friends.filter((id) => id.toString() !== friendId);
+    friend.friends = friend.friends.filter((id) => id.toString() !== userId);
+
+    await user.save();
+    await friend.save();
+
+    // Optionally: delete their private chat
+    await Chat.deleteOne({
+      participants: { $all: [userId, friendId], $size: 2 },
+    });
+
+    res.status(200).json({ message: "Friend removed successfully" });
+  } catch (err) {
+    console.error("❌ Error in removeFriend:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
