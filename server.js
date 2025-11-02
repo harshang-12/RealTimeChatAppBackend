@@ -32,15 +32,21 @@ mongoose
     .then(() => console.log('Connected to MongoDB'))
     .catch((err) => console.error('Database connection error:', err));
 
+
+app.get('/', (req, res) => res.send('Hello this is Harshang chats server!'));
 // Use routes
 app.use('/api', authRoutes);
 app.use('/api', chatRoutes);
 app.use('/api/user', userRoutes);
 
+
+
 // Start HTTP server
 const server = app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
+
+
 
 // Initialize WebSocket server
 initializeWebSocket(server);
