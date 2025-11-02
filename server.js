@@ -19,7 +19,7 @@ app.use(cookieParser());
 // Middleware
 app.use(
   cors({
-    origin: ["http://localhost:5173" , "http://192.168.1.2:5173"], // your frontend URL
+    origin: ["http://localhost:5173" , "http://192.168.1.2:5173", "https://realtimechatapp-drab.vercel.app"], // your frontend URL
     credentials: true, // allow cookies
   })
 );
