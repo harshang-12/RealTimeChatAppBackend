@@ -43,8 +43,11 @@ build/
 # Mac system files
 .DS_Store
 
+
 # Coverage directory used by tools like istanbul
 coverage/
 
 # Debug
 debug.log
+
+uploads/
