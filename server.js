@@ -35,6 +35,9 @@ mongoose
 
 app.get('/', (req, res) => res.send('Hello this is Harshang chats server!'));
 // Use routes
+app.use("/api/upload", require("./routes/upload"));
+app.use("/uploads", express.static("uploads"));
+
 app.use('/api', authRoutes);
 app.use('/api', chatRoutes);
 app.use('/api/user', userRoutes);

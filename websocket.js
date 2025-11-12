@@ -32,7 +32,7 @@ const initializeWebSocket = (server) => {
                 }
 
                 if (type === 'chat') {
-                    const { chatId, senderId, content } = parsedData;
+                    const { chatId, senderId, content, messageType, fileType } = parsedData;
 
                     // Validate message content
                     if (!chatId || !senderId || !content) {
@@ -49,8 +49,10 @@ const initializeWebSocket = (server) => {
 
                     // Create new message
                     const message = {
-                        sender:  senderId,
+                        sender: senderId,
                         content,
+                        messageType: messageType || "text",
+                        fileType: fileType || null,
                         timestamp: new Date(),
                     };
 
