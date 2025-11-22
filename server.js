@@ -1,55 +1,61 @@
+// server.js
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const cookieParser = require("cookie-parser");
+const cookieParser = require('cookie-parser');
 
-require('dotenv').config();
-const initializeWebSocket = require('./websocket'); // Import WebSocket logic
+// WebSocket initializer
+const initializeWebSocket = require('./websocket');
 
-// Import routes
+// Routes
 const authRoutes = require('./routes/authRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const userRoutes = require('./routes/userRoutes');
+const uploadRoutes = require('./routes/upload');
 
-// Initialize express app
+// Express App
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ===== Middlewares =====
 app.use(cookieParser());
-// Middleware
+app.use(express.json());
+
 app.use(
   cors({
-    origin: ["http://localhost:5173" , "http://192.168.1.2:5173", "https://realtimechatapp-drab.vercel.app"], // your frontend URL
-    credentials: true, // allow cookies
+    origin: [
+      "http://localhost:5173",
+      "http://192.168.1.2:5173",
+      "https://realtimechatapp-drab.vercel.app"
+    ],
+    credentials: true,
   })
 );
 
-app.use(express.json());
-
-// Database connection
-mongoose
-    .connect(process.env.MONGO_URI || 'mongodb://localhost:27017/chat')
-    .then(() => console.log('Connected to MongoDB'))
-    .catch((err) => console.error('Database connection error:', err));
-
-
-app.get('/', (req, res) => res.send('Hello this is Harshang chats server!'));
-// Use routes
-app.use("/api/upload", require("./routes/upload"));
+// Static folder
 app.use("/uploads", express.static("uploads"));
 
+// ===== Routes =====
+app.get('/', (_, res) => res.send('Hello! This is Harshang chat server.'));
+app.use("/api/upload", uploadRoutes);
 app.use('/api', authRoutes);
 app.use('/api', chatRoutes);
 app.use('/api/user', userRoutes);
 
+// ===== Database Connection =====
+const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017/chat';
 
+mongoose.connect(mongoURI)
+  .then(() => console.log('MongoDB connected ✔'))
+  .catch((err) => console.error('MongoDB connection error:', err));
 
-// Start HTTP server
+// ===== Server Start =====
 const server = app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
 
-
-
-// Initialize WebSocket server
+// ===== WebSocket =====
 initializeWebSocket(server);
+
+module.exports = app;

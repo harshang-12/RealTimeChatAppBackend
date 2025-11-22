@@ -4,92 +4,116 @@ const Chat = require('./Models/Chat');
 const connectedUsers = new Map();
 
 const initializeWebSocket = (server) => {
-    const wss = new WebSocketServer({ server });
+  const wss = new WebSocketServer({ server });
+  console.log('⚡ WebSocket server initialized');
 
-    wss.on('connection', (ws) => {
-        console.log('🔌 New WebSocket connection established');
-        let currentUserId = null;
+  wss.on('connection', (ws) => {
+    console.log('🔌 Client connected');
+    let currentUserId = null;
 
-        ws.on('message', async (data) => {
-            try {
-                const parsedData = JSON.parse(data);
+    ws.on('message', async (data) => {
+      let payload;
+      try {
+        payload = JSON.parse(data);
+      } catch {
+        return sendError(ws, 'Invalid JSON format');
+      }
 
-                const { type } = parsedData;
+      const { type } = payload;
 
-                if (type === 'authenticate') {
-                    const { userId } = parsedData;
+      switch (type) {
+        case 'authenticate':
+          return handleAuthentication(ws, payload);
 
-                    if (!userId) {
-                        ws.send(JSON.stringify({ error: 'Authentication failed: Missing userId' }));
-                        ws.close();
-                        return;
-                    }
+        case 'chat':
+          return handleIncomingMessage(ws, payload);
 
-                    currentUserId = userId;
-                    connectedUsers.set(userId, ws);
-                    console.log(`✅ User authenticated: ${userId}`);
-                    return;
-                }
+        case 'typing':
+          return handleTypingEvent(payload, true);
 
-                if (type === 'chat') {
-                    const { chatId, senderId, content, messageType, fileType } = parsedData;
+        case 'stop_typing':
+          return handleTypingEvent(payload, false);
 
-                    // Validate message content
-                    if (!chatId || !senderId || !content) {
-                        ws.send(JSON.stringify({ error: 'Invalid message format' }));
-                        return;
-                    }
-
-                    // Find chat
-                    const chat = await Chat.findById(chatId);
-                    if (!chat) {
-                        ws.send(JSON.stringify({ error: 'Chat not found' }));
-                        return;
-                    }
-
-                    // Create new message
-                    const message = {
-                        sender: senderId,
-                        content,
-                        messageType: messageType || "text",
-                        fileType: fileType || null,
-                        timestamp: new Date(),
-                    };
-
-                    chat.messages.push(message);
-                    await chat.save();
-
-                    console.log('💬 Message saved:', message);
-
-                    // Broadcast to all participants
-                    chat.participants.forEach((participantId) => {
-                        const socket = connectedUsers.get(participantId.toString());
-                        if (socket && socket.readyState === ws.OPEN) {
-                            socket.send(JSON.stringify({
-                                type: 'chat',
-                                chatId,
-                                message
-                            }));
-                        }
-                    });
-                }
-
-            } catch (err) {
-                console.error('❌ Error handling WebSocket message:', err);
-                ws.send(JSON.stringify({ error: 'Invalid message format or internal error' }));
-            }
-        });
-
-        ws.on('close', () => {
-            console.log('🔌 WebSocket connection closed');
-            if (currentUserId) {
-                connectedUsers.delete(currentUserId);
-                console.log(`👋 Disconnected user: ${currentUserId}`);
-            }
-        });
+        default:
+          return sendError(ws, 'Unknown event type');
+      }
     });
 
-    console.log('✅ WebSocket server initialized');
+    ws.on('close', () => {
+      console.log('🔌 Client disconnected');
+      if (currentUserId) {
+        connectedUsers.delete(currentUserId);
+        console.log(`👋 User disconnected: ${currentUserId}`);
+      }
+    });
+
+    // ===== Event Handlers =====
+    function handleAuthentication(ws, { userId }) {
+      if (!userId) return sendError(ws, 'Authentication failed: Missing userId');
+      currentUserId = userId;
+      connectedUsers.set(userId, ws);
+      sendSuccess(ws, 'Authenticated');
+      console.log(`🔐 Authenticated user: ${userId}`);
+    }
+
+    async function handleIncomingMessage(ws, { chatId, senderId, content, messageType, fileType }) {
+      if (!chatId || !senderId || !content) return sendError(ws, 'Invalid chat message fields');
+
+      const chat = await Chat.findById(chatId);
+      if (!chat) return sendError(ws, 'Chat not found');
+
+      const message = {
+        sender: senderId,
+        content,
+        messageType: messageType || 'text',
+        fileType: fileType || null,
+        timestamp: new Date(),
+      };
+
+      chat.messages.push(message);
+      await chat.save();
+
+      broadcastToParticipants(chat.participants, {
+        type: 'chat',
+        chatId,
+        message,
+      });
+    }
+
+    // ===== Typing Indicator Events =====
+    function handleTypingEvent({ chatId, senderId }, isTyping) {
+      if (!chatId || !senderId) return;
+
+      Chat.findById(chatId)
+        .then((chat) => {
+          if (!chat) return;
+          broadcastToParticipants(chat.participants, {
+            type: isTyping ? 'typing' : 'stop_typing',
+            chatId,
+            senderId,
+          });
+        })
+        .catch(() => {});
+    }
+
+    // ===== Helper Functions =====
+    function sendError(ws, error) {
+      ws.send(JSON.stringify({ status: 'error', error }));
+    }
+
+    function sendSuccess(ws, message) {
+      ws.send(JSON.stringify({ status: 'success', message }));
+    }
+
+    function broadcastToParticipants(participants, payload) {
+      participants.forEach((participantId) => {
+        const socket = connectedUsers.get(participantId.toString());
+        if (socket && socket.readyState === ws.OPEN) {
+          socket.send(JSON.stringify(payload));
+        }
+      });
+    }
+  });
 };
 
 module.exports = initializeWebSocket;
